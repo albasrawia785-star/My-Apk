@@ -13,11 +13,19 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Unzip Project Files
+    - name: Unzip Project Files Automatically
       run: |
-        unzip -o دوائي.zip -d .
-        if [ -d "دوائي" ]; then
-          mv دوائي/* .
+        # فك ضغط أي ملف ZIP موجود في المستودع تلقائياً دون الاعتماد على الاسم
+        unzip -o *.zip -d .
+        
+        # التحقق من مكان وجود ملف build.gradle.kts وترتيب المجلدات
+        if [ ! -f "build.gradle.kts" ] && [ ! -f "build.gradle" ]; then
+          echo "Looking for project files in subdirectories..."
+          # إذا كانت الملفات داخل مجلد فرعي، انقلها للمسار الرئيسي
+          SUBDIR=$(find . -maxdepth 2 -name "app" -type d -exec dirname {} \;)
+          if [ "$SUBDIR" != "." ] && [ -not -z "$SUBDIR" ]; then
+            mv $SUBDIR/* . 2>/dev/null || true
+          fi
         fi
 
     - name: Set up JDK 17
@@ -28,7 +36,14 @@ jobs:
         cache: gradle
 
     - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      run: |
+        if [ -f "gradlew" ]; then
+          chmod +x gradlew
+        else
+          echo "gradlew not found, creating a new wrapper..."
+          gradle wrapper
+          chmod +x gradlew
+        fi
 
     - name: Build with Gradle
       run: ./gradlew assembleDebug
@@ -37,4 +52,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: school-app-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: |
+          app/build/outputs/apk/debug/*.apk
+          **/build/outputs/apk/debug/*.apk
