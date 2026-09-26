@@ -18,18 +18,17 @@ jobs:
         run: |
           rm -rf capacitor.config.ts capacitor.config.json
 
-      - name: Unzip Project Files
+      - name: Unzip Project Files If Needed
         run: |
-          unzip "pos.zip--صيدلي-برو" -d temp_unzip || unzip *.zip -d temp_unzip || true
-          TARGET_DIR=$(find temp_unzip -name "package.json" -exec dirname {} \;)
-          if [ -n "$TARGET_DIR" ]; then
-            echo "Found project files in: $TARGET_DIR"
-            cp -r $TARGET_DIR/* .
-          else
-            echo "Error: package.json not found!"
-            exit 1
+          if [ -f "pos.zip--صيدلي-برو" ] || ls *.zip 1> /dev/null 2>&1; then
+            unzip "pos.zip--صيدلي-برو" -d temp_unzip 2>/dev/null || unzip *.zip -d temp_unzip 2>/dev/null || true
+            TARGET_DIR=$(find temp_unzip -name "package.json" -exec dirname {} \; | head -n 1)
+            if [ -n "$TARGET_DIR" ]; then
+              echo "Found project files in: $TARGET_DIR"
+              cp -r $TARGET_DIR/* .
+            fi
+            rm -rf temp_unzip
           fi
-          rm -rf temp_unzip
 
       - name: Deep Clean Environment
         run: |
@@ -58,7 +57,7 @@ jobs:
               aldion_path = 'src/aldion.ts'
 
           if raw_url and raw_token:
-              print('🔒 تم العثور على توكن في الـ YAML -> جاري التشفير العسكري والحقن في aldion.ts...')
+              print('🔒 تم العثور على توكن في الـ YAML -> جاري التشفير والحقن في aldion.ts...')
               url_key = [83, 183, 31, 140, 66, 158, 97, 170, 53, 212]
               token_key = [155, 77, 226, 26, 119, 60, 245, 134, 41, 161, 100, 216]
 
@@ -114,7 +113,7 @@ jobs:
         run: |
           npm install --force
 
-      - name: Build Web Application (With Obfuscation)
+      - name: Build Web Application
         run: npm run build
 
       - name: Install Native Capacitor Plugins
@@ -194,12 +193,15 @@ jobs:
           npx cap add android
           npx cap sync android
 
-      - name: Optimize Native Android Manifest & Full Storage Permissions
+      # =========================================================================
+      # 🛡️ أذونات آمنة ونظيفة لتجنب الحظر الأحمر وظهور شاشة الفحص الخضراء
+      # =========================================================================
+      - name: Optimize Native Android Manifest & Safe Permissions
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
-            sed -i 's/<application/<application android:hardwareAccelerated="true" android:largeHeap="true" android:usesCleartextTraffic="true"/g' $MANIFEST_PATH
-            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />\n    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST_PATH
+            sed -i 's/<application/<application android:hardwareAccelerated="true" android:largeHeap="true"/g' $MANIFEST_PATH
+            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST_PATH
           fi
 
       - name: Generate Multi-Resolution App Icons
@@ -218,6 +220,9 @@ jobs:
           }
 
           icon_path = 'icon.png'
+          if not os.path.exists(icon_path):
+              icon_path = 'public/icon.png'
+
           if os.path.exists(icon_path):
               img = Image.open(icon_path).convert('RGBA')
               res_dir = 'android/app/src/main/res'
@@ -267,12 +272,12 @@ jobs:
           # 1. نسخ المفتاح الدائم الثابت من جذر المشروع
           if [ -f "../daftar_release.keystore" ]; then
             cp ../daftar_release.keystore release.keystore
-            echo "✅ تم العثور على مفتاح التوقيع الثابت والاستخدامه!"
+            echo "✅ تم استخدام المفتاح الثابت: daftar_release.keystore"
           elif [ -f "../release.keystore" ]; then
             cp ../release.keystore release.keystore
-            echo "✅ تم العثور على مفتاح التوقيع الثابت والاستخدامه!"
+            echo "✅ تم استخدام المفتاح الثابت: release.keystore"
           else
-            echo "⚠️ تنبيه: لم يتم العثور على المفتاح الثابت، جاري التوليد كخطة بديلة..."
+            echo "⚠️ لم يتم العثور على المفتاح، جاري التوليد الاحتياطي..."
             keytool -genkeypair -v -keystore release.keystore -alias daftar_key -keyalg RSA -keysize 2048 -validity 10000 -storepass "DaftarPass2026" -keypass "DaftarPass2026" -dname "CN=DaftarAldeyon, OU=App, O=Daftar, L=Baghdad, S=Baghdad, C=IQ" -storetype PKCS12
           fi
 
@@ -285,16 +290,16 @@ jobs:
           # 3. بناء الـ APK
           ./gradlew assembleRelease --no-daemon -Dorg.gradle.project.android.useAndroidX=true
 
-          # 4. توقيع الـ APK النهائي بالمفتاح الثابت (مع تصحيح مسار البحث تماماً)
+          # 4. توقيع الـ APK النهائي بالمفتاح الثابت
           BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 | sort | tail -n 1)
           DATE_STR=$(date +'%Y-%m-%d')
           FINAL_APK_NAME="Daftar-Aldeyon-${DATE_STR}-v${RUN_NUM}.apk"
           
           if [ -f "$BUILD_TOOLS_DIR/apksigner" ]; then
             $BUILD_TOOLS_DIR/apksigner sign --ks release.keystore --ks-pass pass:"DaftarPass2026" --key-pass pass:"DaftarPass2026" --out "app/build/outputs/apk/release/${FINAL_APK_NAME}" app/build/outputs/apk/release/app-release-unsigned.apk
-            echo "✅ تم توقيع الـ APK بنجاح تام!"
+            echo "✅ تم توقيع الـ APK بنجاح وبالمفتاح الدائم!"
           else
-            echo "❌ خطأ: لم يتم العثور على أداة apksigner في المسار المحدد"
+            echo "❌ خطأ: لم يتم العثور على apksigner"
             exit 1
           fi
 
