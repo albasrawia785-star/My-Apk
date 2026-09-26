@@ -267,7 +267,7 @@ jobs:
           # 1. نسخ المفتاح الدائم الثابت من جذر المشروع
           if [ -f "../daftar_release.keystore" ]; then
             cp ../daftar_release.keystore release.keystore
-            echo "✅ تم العثور على مفتاح التوقيع الثابت واستخدامه!"
+            echo "✅ تم العثور على مفتاح التوقيع الثابت والاستخدامه!"
           elif [ -f "../release.keystore" ]; then
             cp ../release.keystore release.keystore
             echo "✅ تم العثور على مفتاح التوقيع الثابت والاستخدامه!"
@@ -285,8 +285,8 @@ jobs:
           # 3. بناء الـ APK
           ./gradlew assembleRelease --no-daemon -Dorg.gradle.project.android.useAndroidX=true
 
-          # 4. توقيع الـ APK النهائي بالمفتاح الثابت مع تصحيح مسار أداة apksigner
-          BUILD_TOOLS_DIR=$(find$ANDROID_HOME/build-tools -maxdepth 1 -mindepth 1 | sort | tail -n 1)
+          # 4. توقيع الـ APK النهائي بالمفتاح الثابت (مع تصحيح مسار البحث تماماً)
+          BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 | sort | tail -n 1)
           DATE_STR=$(date +'%Y-%m-%d')
           FINAL_APK_NAME="Daftar-Aldeyon-${DATE_STR}-v${RUN_NUM}.apk"
           
