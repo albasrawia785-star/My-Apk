@@ -267,7 +267,7 @@ jobs:
           # 1. نسخ المفتاح الدائم الثابت من جذر المشروع
           if [ -f "../daftar_release.keystore" ]; then
             cp ../daftar_release.keystore release.keystore
-            echo "✅ تم العثور على مفتاح التوقيع الثابت والاستخدامه!"
+            echo "✅ تم العثور على مفتاح التوقيع الثابت واستخدامه!"
           elif [ -f "../release.keystore" ]; then
             cp ../release.keystore release.keystore
             echo "✅ تم العثور على مفتاح التوقيع الثابت والاستخدامه!"
@@ -285,12 +285,18 @@ jobs:
           # 3. بناء الـ APK
           ./gradlew assembleRelease --no-daemon -Dorg.gradle.project.android.useAndroidX=true
 
-          # 4. توقيع الـ APK النهائي بالمفتاح الثابت
-          BUILD_TOOLS_DIR=$(ls -d$ANDROID_HOME/build-tools/* | tail -n 1)
+          # 4. توقيع الـ APK النهائي بالمفتاح الثابت مع تصحيح مسار أداة apksigner
+          BUILD_TOOLS_DIR=$(find$ANDROID_HOME/build-tools -maxdepth 1 -mindepth 1 | sort | tail -n 1)
           DATE_STR=$(date +'%Y-%m-%d')
           FINAL_APK_NAME="Daftar-Aldeyon-${DATE_STR}-v${RUN_NUM}.apk"
           
-          $BUILD_TOOLS_DIR/apksigner sign --ks release.keystore --ks-pass pass:"DaftarPass2026" --key-pass pass:"DaftarPass2026" --out "app/build/outputs/apk/release/${FINAL_APK_NAME}" app/build/outputs/apk/release/app-release-unsigned.apk
+          if [ -f "$BUILD_TOOLS_DIR/apksigner" ]; then
+            $BUILD_TOOLS_DIR/apksigner sign --ks release.keystore --ks-pass pass:"DaftarPass2026" --key-pass pass:"DaftarPass2026" --out "app/build/outputs/apk/release/${FINAL_APK_NAME}" app/build/outputs/apk/release/app-release-unsigned.apk
+            echo "✅ تم توقيع الـ APK بنجاح تام!"
+          else
+            echo "❌ خطأ: لم يتم العثور على أداة apksigner في المسار المحدد"
+            exit 1
+          fi
 
       - name: Upload Signed APK
         uses: actions/upload-artifact@v4
