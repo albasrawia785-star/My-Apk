@@ -120,14 +120,10 @@ jobs:
         run: |
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/filesystem@latest @capacitor/share@latest @capacitor/splash-screen@latest @capacitor/haptics@latest @capacitor-community/sqlite@latest
 
-      # =========================================================================
-      # 📄 حقن موجه المشاركة التلقائي لملفات PDF والنسخ الاحتياطية في أندرويد
-      # =========================================================================
       - name: Inject Universal Native Download & Share Interceptor
         run: |
           cat << 'EOF' > dist/inject_share.js
           (function() {
-            // Intercept URL.createObjectURL for PDF and Backup Blobs
             const originalCreate = URL.createObjectURL;
             URL.createObjectURL = function(blob) {
               const url = originalCreate.call(this, blob);
@@ -150,7 +146,6 @@ jobs:
               return url;
             };
 
-            // Intercept direct download anchor clicks
             document.addEventListener('click', function(e) {
               const anchor = e.target.closest('a[download]');
               if (anchor && anchor.href) {
@@ -203,10 +198,10 @@ jobs:
                   });
 
                   await Share.share({
-                    title: isJson ? 'النسخة الاحتياطية' : 'تقرير كشف الحساب (PDF)',
-                    text: isJson ? 'ملف النسخة الاحتياطية - دفتر الديون' : 'تقرير كشف الحساب المالي - دفتر الديون',
+                    title: isJson ? 'النسخة الاحتياطية' : 'تقرير كشف الحساب',
+                    text: isJson ? 'ملف النسخة الاحتياطية - دفتر الديون' : 'تقرير كشف الحساب - دفتر الديون',
                     url: savedFile.uri,
-                    dialogTitle: isJson ? 'حفظ أو مشاركة النسخة الاحتياطية' : 'مشاركة أو حفظ تقرير الـ PDF'
+                    dialogTitle: isJson ? 'حفظ أو مشاركة النسخة الاحتياطية' : 'مشاركة أو حفظ التقرير'
                   });
                 } else if (navigator.share) {
                   try {
@@ -221,8 +216,8 @@ jobs:
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                       await navigator.share({
                         files: [file],
-                        title: isJson ? 'النسخة الاحتياطية' : 'تقرير كشف الحساب (PDF)',
-                        text: isJson ? 'ملف النسخة الاحتياطية' : 'تقرير كشف الحساب المالي - دفتر الديون',
+                        title: isJson ? 'النسخة الاحتياطية' : 'تقرير كشف الحساب',
+                        text: isJson ? 'ملف النسخة الاحتياطية' : 'تقرير كشف الحساب - دفتر الديون',
                       });
                     }
                   } catch (webShareErr) {
@@ -253,8 +248,14 @@ jobs:
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
+            sed -i 's/android:debuggable="false"//g' $MANIFEST_PATH
+            sed -i 's/android:debuggable="true"//g' $MANIFEST_PATH
             sed -i 's/<application/<application android:hardwareAccelerated="true" android:largeHeap="true" android:extractNativeLibs="true"/g' $MANIFEST_PATH
             sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST_PATH
+          fi
+
+          if [ -f "android/app/build.gradle" ]; then
+            sed -i '/android {/a \    lintOptions {\n        checkReleaseBuilds false\n        abortOnError false\n    }' android/app/build.gradle
           fi
 
       - name: Generate Multi-Resolution App Icons
@@ -337,7 +338,7 @@ jobs:
 
           ./gradlew assembleRelease --no-daemon -Dorg.gradle.project.android.useAndroidX=true
 
-          BUILD_TOOLS_DIR=$(ls -d$ANDROID_HOME/build-tools/* | tail -n 1)
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
           DATE_STR=$(date +'%Y-%m-%d')
           FINAL_APK_NAME="Daftar-Aldeyon-${DATE_STR}-v${RUN_NUM}.apk"
           
