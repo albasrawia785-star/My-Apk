@@ -253,7 +253,7 @@ jobs:
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_PATH" ]; then
-            sed -i 's/<application/<application android:hardwareAccelerated="true" android:largeHeap="true" android:debuggable="false" android:extractNativeLibs="true"/g' $MANIFEST_PATH
+            sed -i 's/<application/<application android:hardwareAccelerated="true" android:largeHeap="true" android:extractNativeLibs="true"/g' $MANIFEST_PATH
             sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST_PATH
           fi
 
@@ -337,7 +337,7 @@ jobs:
 
           ./gradlew assembleRelease --no-daemon -Dorg.gradle.project.android.useAndroidX=true
 
-          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | tail -n 1)
+          BUILD_TOOLS_DIR=$(ls -d$ANDROID_HOME/build-tools/* | tail -n 1)
           DATE_STR=$(date +'%Y-%m-%d')
           FINAL_APK_NAME="Daftar-Aldeyon-${DATE_STR}-v${RUN_NUM}.apk"
           
