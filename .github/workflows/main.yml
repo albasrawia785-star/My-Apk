@@ -16,7 +16,7 @@ jobs:
 
       - name: Unzip Project Files If Present  
         run: |  
-          # البحث عن أي ملف مضغوط وفك ضغطه واستخراج ملفات المشروع تلقائياً
+          # استخراج ملفات المشروع تلقائياً
           if ls *.zip 1> /dev/null 2>&1; then  
             mkdir -p temp_unzip  
             unzip -o *.zip -d temp_unzip 2>/dev/null || true  
@@ -28,7 +28,7 @@ jobs:
             rm -rf temp_unzip  
           fi  
 
-          # التحقق من وجود package.json
+          # التأكد من وجود package.json
           if [ ! -f "package.json" ]; then
             TARGET_DIR=$(find . -maxdepth 3 -name "package.json" -exec dirname {} \; | head -n 1)
             if [ -n "$TARGET_DIR" ] && [ "$TARGET_DIR" != "." ]; then
@@ -64,14 +64,6 @@ jobs:
           npx cap init "دفتر الديون" "com.daftar.aldeyon" --web-dir=dist  
           npx cap add android  
           npx cap sync android  
-
-      - name: Configure Secure Android Manifest  
-        run: |  
-          MANIFEST="android/app/src/main/AndroidManifest.xml"  
-          if [ -f "$MANIFEST" ]; then  
-            sed -i 's/<application/<application android:usesCleartextTraffic="false" android:allowBackup="true"/g' $MANIFEST  
-            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST  
-          fi  
 
       - name: Set up JDK 21  
         uses: actions/setup-java@v4  
