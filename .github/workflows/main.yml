@@ -1,4 +1,4 @@
-name: Build Clean Android APK
+name: Build Android APK with Persistent Signing
 
 on:
   push:
@@ -14,7 +14,30 @@ jobs:
       - name: Checkout Source Code  
         uses: actions/checkout@v4  
 
-      - name: Clean Environment  
+      - name: Unzip Project Files If Present  
+        run: |  
+          # البحث عن أي ملف مضغوط وفك ضغطه واستخراج ملفات المشروع تلقائياً
+          if ls *.zip 1> /dev/null 2>&1; then  
+            mkdir -p temp_unzip  
+            unzip -o *.zip -d temp_unzip 2>/dev/null || true  
+            TARGET_DIR=$(find temp_unzip -name "package.json" -exec dirname {} \; | head -n 1)  
+            if [ -n "$TARGET_DIR" ]; then  
+              echo "✅ تم العثور على ملفات المشروع في: $TARGET_DIR"  
+              cp -r $TARGET_DIR/* .  
+            fi  
+            rm -rf temp_unzip  
+          fi  
+
+          # التحقق من وجود package.json
+          if [ ! -f "package.json" ]; then
+            TARGET_DIR=$(find . -maxdepth 3 -name "package.json" -exec dirname {} \; | head -n 1)
+            if [ -n "$TARGET_DIR" ] && [ "$TARGET_DIR" != "." ]; then
+              echo "✅ تم العثور على package.json في مجلد فرعي: $TARGET_DIR"
+              cp -r $TARGET_DIR/* .
+            fi
+          fi
+
+      - name: Clean Conflicting Configurations  
         run: |  
           rm -rf node_modules package-lock.json dist android  
           find . -name "capacitor.config.ts" -delete  
@@ -29,10 +52,10 @@ jobs:
         run: |  
           npm install --force  
 
-      - name: Build Web Application (Standard Clean Build)  
+      - name: Build Web Application  
         run: npm run build  
 
-      - name: Install Official Capacitor Plugins  
+      - name: Install Native Capacitor Plugins  
         run: |  
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/filesystem@latest @capacitor/share@latest  
 
@@ -61,13 +84,16 @@ jobs:
           cd android  
           chmod +x gradlew  
 
-          # التحقق من وجود مفتاح التوقيع الثابت حصراً
+          # التأكد من وجود مفتاح التوقيع الثابت حصراً
           if [ -f "../daftar_release.keystore" ]; then  
             cp ../daftar_release.keystore release.keystore  
+            echo "✅ تم استخدام المفتاح الرسمي: daftar_release.keystore"  
           elif [ -f "../release.keystore" ]; then  
             cp ../release.keystore release.keystore  
+            echo "✅ تم استخدام المفتاح الرسمي: release.keystore"  
           else  
-            echo "❌ خطأ: ملف التوقيع غير موجود!" && exit 1  
+            echo "❌ خطأ: لم يتم العثور على ملف التوقيع daftar_release.keystore في المشروع!"  
+            exit 1  
           fi  
 
           RUN_NUM=${{ github.run_number }}  
@@ -77,8 +103,9 @@ jobs:
           DATE_STR=$(date +'%Y-%m-%d')  
           FINAL_APK_NAME="Daftar-Aldeyon-${DATE_STR}-v${RUN_NUM}.apk"  
 
-          # محاذاة وتوقيع نظيف ومطابق لمعايير جوجل
+          # المحاذاة والتوقيع النظيف
           $BUILD_TOOLS_DIR/zipalign -v -p 4 app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/aligned.apk  
+          
           $BUILD_TOOLS_DIR/apksigner sign \
             --ks release.keystore \
             --ks-key-alias daftar_key \
@@ -92,7 +119,7 @@ jobs:
 
           $BUILD_TOOLS_DIR/apksigner verify -v "app/build/outputs/apk/release/${FINAL_APK_NAME}"  
 
-      - name: Upload Clean APK  
+      - name: Upload Signed APK  
         uses: actions/upload-artifact@v4  
         with:  
           name: Daftar-Aldeyon-APK  
