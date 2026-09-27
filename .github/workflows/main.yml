@@ -238,7 +238,7 @@ jobs:
       - name: Initialize Capacitor Android
         run: |
           APP_NAME="دفتر الديون"
-          PACKAGE_ID="com.daftar.aldeyon"
+          PACKAGE_ID="com.daftar.al"
 
           npx cap init "$APP_NAME" "$PACKAGE_ID" --web-dir=dist
           npx cap add android
